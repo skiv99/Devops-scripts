@@ -1,0 +1,320 @@
+stages:
+  - build
+  - test
+  - upload
+  - restart_preprod
+  - deploy_preprod
+  - restart_prod
+  - deploy_prod
+
+🔨 BUILD:
+  stage: build
+  image: adoptopenjdk/openjdk11:jdk-11.0.8_10-alpine
+  variables:
+    GRADLE_OPTS: "-Xmx4096m -Dorg.gradle.daemon=false"
+  cache:
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+  before_script:
+    - export GRADLE_USER_HOME=`pwd`/.gradle
+  script:
+    - gradle -v
+    - cp gradle.properties .gradle/gradle.properties
+    - echo cat .gradle/gradle.properties
+    - cat .gradle/gradle.properties
+    #- ./gradlew --build-cache --stacktrace -i buildDependents
+    - ./gradlew clean bootJar
+  when: manual
+  only:
+    variables:
+      - $restart_services != 'true'
+    refs:
+      - ci/cd_scripts
+
+🔨 UPLOAD:
+  stage: upload
+  image: adoptopenjdk/openjdk11:jdk-11.0.8_10-alpine
+  variables:
+    GRADLE_OPTS: "-Xmx4096m -Dorg.gradle.daemon=false"
+  cache:
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+  before_script:
+    - export GRADLE_USER_HOME=`pwd`/.gradle
+  script:
+    - gradle -v
+    - cp gradle.properties .gradle/gradle.properties
+    - echo cat .gradle/gradle.properties
+    - cat .gradle/gradle.properties
+    - ./gradlew jib -Pimage_tag=$CI_COMMIT_BRANCH --stacktrace
+  when: manual
+  only:
+    variables:
+      - $restart_services != 'true'
+    refs:
+      - ci/cd_scripts
+
+🔨 TEST:
+  stage: test
+  image: adoptopenjdk/openjdk11:jdk-11.0.3_7-slim
+  cache:
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+  variables:
+    GRADLE_OPTS: "-Xms512m -Xmx2048m -Dorg.gradle.daemon=false -Xss1M -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8"
+  script:
+    - ./gradlew -i --no-daemon --scan test
+  artifacts:
+    reports:
+      junit: build/test-results/test/*/TEST-*.xml
+  when: manual
+  only:
+    variables:
+      - $restart_services != 'true'
+    refs:
+      - /^ci/cd.*$/
+      - /^release.*$/
+      - ci/cd_scripts
+
+
+✈️ DEPLOY_PREPROD:
+  stage: deploy_preprod
+  tags:
+    - server_preprod
+  variables:
+    environment: preprod
+    yaml_file_name: cicd-scripts/preprod.yaml
+    node: preprod
+    playbook_uri: none
+    ansible_switch: "false"
+  script:
+    - echo stage deploy_preprod
+    - chmod 777 cicd-scripts/deploy_new.sh
+    - ./cicd-scripts/deploy_new.sh deploy
+  when: manual
+  only:
+    variables:
+      - $restart_services != 'true'
+    refs:
+      - ci/cd_scripts_v2
+
+
+✈️ DEPLOY_PROD_NODE1:
+  stage: deploy_prod
+  tags:
+    - server_prod1
+  variables:
+    environment: prod
+    deploy_service_defaut: cicd-scripts/services_node1
+    gateway_host: [masked]:8080
+    yaml_file_name: cicd-scripts/prod.yaml
+    node: node1
+    playbook_uri: [masked]
+    ansible_switch: "true"
+  script:
+    - echo stage deploy_node1
+    - chmod 777 cicd-scripts/deploy_new.sh
+    - ./cicd-scripts/deploy_new.sh deploy
+    - docker ps -a
+  when: manual
+  only:
+    variables:
+      - $restart_services != 'true'
+    refs:
+      - ci/cd_scripts_v2
+
+✈️ DEPLOY_PROD_NODE2:
+  stage: deploy_prod
+  tags:
+    - server_prod2
+  variables:
+    environment: prod
+    deploy_service_defaut: cicd-scripts/services_node2
+    gateway_host: [masked]:8080
+    yaml_file_name: cicd-scripts/prod.yaml
+    node: node2
+    playbook_uri: https://ansible.sovcombank.group/api/v2/job_templates/217/launch/
+    ansible_switch: "true"
+  when: manual
+  script:
+    - echo stage deploy_node2
+    - chmod 777 cicd-scripts/deploy_new.sh
+    - ./cicd-scripts/deploy_new.sh deploy
+    - docker ps -a
+  only:
+    variables:
+      - $restart_services != 'true'
+    refs:
+      - ci/cd_scripts_v2
+
+✈️ DEPLOY_PROD_NODE3:
+  stage: server_prod3
+  tags:
+    - uhp-ubank-dbo-app1-shell
+  variables:
+    environment: prod
+    deploy_service_defaut: cicd-scripts/services_node2
+    gateway_host: [masked]:8080
+    yaml_file_name: cicd-scripts/prod.yaml
+    node: node3
+    playbook_uri: [masked]
+    ansible_switch: "true"
+  when: manual
+  script:
+    - echo stage deploy_node3
+    - chmod 777 cicd-scripts/deploy_new.sh
+    - ./cicd-scripts/deploy_new.sh deploy
+    - docker ps -a
+  only:
+    variables:
+      - $restart_services != 'true'
+    refs:
+      - ci/cd_scripts_v2
+
+✈️ DEPLOY_PROD_NODE4:
+  stage: deploy_prod
+  tags:
+    - server_prod4
+  variables:
+    environment: prod
+    deploy_service_defaut: cicd-scripts/services_node4
+    gateway_host: [masked]:8080
+    yaml_file_name: cicd-scripts/prod.yaml
+    node: node4
+    playbook_uri: [masked]
+    ansible_switch: "true"
+  when: manual
+  script:
+    - echo stage deploy_node4
+    - chmod 777 cicd-scripts/deploy_new.sh
+    - ./cicd-scripts/deploy_new.sh deploy
+    - docker ps -a
+  only:
+    variables:
+      - $restart_services != 'true'
+    refs:
+      - ci/cd_scripts_v2
+
+
+🔄️ RESTART_PREPROD:
+  stage: restart_preprod
+  tags:
+    - server_preprod
+  variables:
+    environment: preprod
+    deploy_service_defaut: cicd-scripts/services_preprod
+    yaml_file_name: cicd-scripts/preprod.yaml
+    node: preprod
+    playbook_uri: none
+    ansible_switch: "false"
+  script:
+    - echo stage deploy_preprod
+    - chmod 777 cicd-scripts/deploy_new.sh
+    - ./cicd-scripts/deploy_new.sh restart
+    - docker ps -a
+  when: manual
+  only:
+    variables:
+      - $restart_services == 'true'
+    refs:
+      - ci/cd_scripts_v2
+
+🔄️ RESTART_PROD_NODE1:
+  stage: restart_prod
+  tags:
+    - server_prod1
+  variables:
+    environment: prod
+    deploy_service_defaut: cicd-scripts/services_node1
+    gateway_host: [masked]:8080
+    yaml_file_name: cicd-scripts/prod.yaml
+    node: node1
+    playbook_uri: [masked]
+    ansible_switch: "true"
+  script:
+    - echo stage restart prod 1
+    - chmod 777 cicd-scripts/deploy_new.sh
+    - ./cicd-scripts/deploy_new.sh restart
+    - docker ps -a
+  when: manual
+  only:
+    variables:
+      - $restart_services == 'true'
+    refs:
+      - ci/cd_scripts_v2
+
+🔄️ RESTART_PROD_NODE2:
+  stage: restart_prod
+  tags:
+    - server_prod2
+  variables:
+    environment: prod
+    deploy_service_defaut: cicd-scripts/services_node2
+    gateway_host: [masked]:8080
+    yaml_file_name: cicd-scripts/prod.yaml
+    node: node2
+    playbook_uri: [masked]
+    ansible_switch: "true"
+  when: manual
+  script:
+    - echo stage restart prod 2
+    - chmod 777 cicd-scripts/deploy_new.sh
+    - ./cicd-scripts/deploy_new.sh restart
+    - docker ps -a
+  only:
+    variables:
+      - $restart_services == 'true'
+    refs:
+      - ci/cd_scripts_v2
+
+🔄️ RESTART_PROD_NODE3:
+  stage: restart_prod
+  tags:
+    - server_prod3
+  variables:
+    environment: prod
+    deploy_service_defaut: cicd-scripts/services_node2
+    gateway_host: [masked].sovcombank.group:8080
+    yaml_file_name: cicd-scripts/prod.yaml
+    node: node3
+    playbook_uri: [masked]
+    ansible_switch: "true"
+  when: manual
+  script:
+    - echo stage restart prod 3
+    - chmod 777 cicd-scripts/deploy_new.sh
+    - ./cicd-scripts/deploy_new.sh restart
+    - docker ps -a
+  only:
+    variables:
+      - $restart_services == 'true'
+    refs:
+      - ci/cd_scripts_v2
+
+
+🔄️ RESTART_PROD_NODE4:
+  stage: restart_prod
+  tags:
+    - server_prod4
+  variables:
+    environment: prod
+    deploy_service_defaut: cicd-scripts/services_node4
+    gateway_host: [masked]:8080
+    yaml_file_name: cicd-scripts/prod.yaml
+    node: node4
+    playbook_uri: [masked]
+    ansible_switch: "true"
+  when: manual
+  script:
+    - echo stage restart prod 4
+    - chmod 777 cicd-scripts/deploy_new.sh
+    - ./cicd-scripts/deploy_new.sh restart
+    - docker ps -a
+  only:
+    variables:
+      - $restart_services == 'true'
+    refs:
+      - ci/cd_scripts_v2

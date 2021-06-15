@@ -1,0 +1,29 @@
+---
+- hosts: all
+  gather_facts: no
+  tasks:
+    - name: "Change configuration virthost {{ nginx_virt_host }}"
+      block:
+        - name: "unset backup with backend_port"
+          lineinfile:
+            path: /etc/nginx/sites-enabled/{{ nginx_virt_host }}
+            regexp: '(\s*server\s*{{ backend_host }} .*) backup;'
+            line: '\1;'
+            backrefs: yes
+          when: method == "activate"
+          register: activate_check
+
+        - name: "set backup backend_port"
+          lineinfile:
+            path: /etc/nginx/sites-enabled/{{ nginx_virt_host }}
+            regexp: '(.*server.*{{ backend_host }} .*);'
+            line: '\1 backup;'
+            backrefs: yes
+          when: method == "deactivate"
+          register: deactivate_check
+
+    - name: "Reload nginx server"
+      systemd:
+        name: "nginx"
+        state: reloaded
+      when: (activate_check.changed) or (deactivate_check.changed)

@@ -1,0 +1,31 @@
+service-name-111:
+  port: 8888
+  memory_start: 1g
+  service_enable: true
+  node_available:
+    preprod: true
+  imagetag: [masked]
+
+service-name-222:
+  port: 8034
+  memory_start: 1g
+  service_enable: true
+  node_available:
+    preprod: true
+  imagetag: [masked]
+
+service-name-333:
+  port: 8003
+  memory_start: 1g
+  service_enable: true
+  node_available:
+    preprod: true
+  imagetag: [masked]
+
+service-name-444:
+  port: 8022
+  memory_start: 1g
+  service_enable: true
+  node_available:
+    preprod: true
+  imagetag: [masked]

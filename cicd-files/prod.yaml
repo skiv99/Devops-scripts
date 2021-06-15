@@ -1,0 +1,43 @@
+service-name-111:
+  port: 8888
+  memory_start: 1g
+  service_enable: true
+  node_available:
+    node1: false
+    node2: true
+    node3: true
+    node4: true
+  imagetag: [masked]
+
+service-name-222:
+  port: 8034
+  memory_start: 1g
+  service_enable: true
+  node_available:
+    node1: true
+    node2: false
+    node3: false
+    node4: true
+  imagetag: [masked]
+
+service-name-333:
+  port: 8003
+  memory_start: 2g
+  service_enable: true
+  node_available:
+    node1: false
+    node2: false
+    node3: true
+    node4: false
+  imagetag: [masked]
+
+service-name-444:
+  port: 8022
+  memory_start: 2g
+  service_enable: true
+  node_available:
+    node1: false
+    node2: false
+    node3: false
+    node4: true
+  imagetag: [masked]
